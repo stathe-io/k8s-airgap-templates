@@ -76,11 +76,38 @@ unknown_image_is_not_pulled() {
   return $status
 }
 
+# The images the bundle lists, as repository paths without the registry host.
+bundled_repos() {
+  grep -v '^#' "$(dirname "$0")/../images.txt" | sed -E 's#^[^/]+/##; s#[:@].*##' | sort -u
+}
+
+# Runs crane on the enclave network, the only place the registry answers.
+in_enclave() {
+  docker run --rm --network "$NETWORK" "$CRANE_IMAGE" "$@"
+}
+
+registry_holds_exactly_the_bundle() {
+  have=$(in_enclave catalog --insecure "$REGISTRY" | sort -u)
+  [ -n "$have" ] && [ "$have" = "$(bundled_repos)" ]
+}
+
+bundled_image_runs() {
+  image=$(grep -v '^#' "$(dirname "$0")/../images.txt" | head -1)
+  k delete pod bundle-probe --ignore-not-found --wait=true
+  k run bundle-probe --restart=Never --image="$image"
+  k wait pod/bundle-probe --for=condition=Ready --timeout=90s
+  status=$?
+  k delete pod bundle-probe --ignore-not-found --wait=false
+  return $status
+}
+
 check "the cluster node is Ready" node_ready
 check "the network has no route out" network_is_internal
 check "the node cannot reach the internet" node_cannot_reach_internet
 check "a pod from the bundle runs" pod_from_bundle_runs
 check "a pod cannot reach the internet" pod_cannot_reach_internet
 check "an image outside the bundle is not pulled" unknown_image_is_not_pulled
+check "the enclave registry holds exactly the bundle" registry_holds_exactly_the_bundle
+check "a bundled image runs, pulled through the enclave registry" bundled_image_runs
 
 exit $failed

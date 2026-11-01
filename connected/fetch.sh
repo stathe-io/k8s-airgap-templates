@@ -17,3 +17,24 @@ if command -v sha256sum >/dev/null; then sum="sha256sum"; else sum="shasum -a 25
 
 # Refuse the bundle rather than carry an unverified file across the gap.
 grep " $K3S_AIRGAP\$" k3s-sha256sum.txt | $sum -c -
+
+# The tools that run inside the enclave travel in the bundle too, so the
+# enclave side never pulls anything.
+for tool in "$REGISTRY_IMAGE" "$CRANE_IMAGE"; do
+  docker pull -q "$tool" >/dev/null
+done
+docker save "$REGISTRY_IMAGE" "$CRANE_IMAGE" -o tools.tar
+
+# Each image as an OCI layout holding the whole index, so the digest in
+# images.txt is the digest the enclave registry serves.
+here=$(pwd)
+mkdir -p images
+grep -v '^#' "$here/../images.txt" | while read -r ref; do
+  [ -n "$ref" ] || continue
+  dir=$(echo "$ref" | sed -E 's#[@:].*##; s#[/.]#_#g')
+  rm -rf "images/$dir"
+  docker run --rm -v "$here/images:/out" "$CRANE_IMAGE" \
+    pull --format=oci --platform=all "$ref" "/out/$dir"
+  echo "$ref" > "images/$dir/ref"
+  echo "bundled $ref"
+done
