@@ -11,7 +11,7 @@ node-ip: "192.168.5.15"
 
 # CIS hardening. Turns on: restricted Pod Security in all namespaces except the
 # system ones, default NetworkPolicies, API audit logging and host checks.
-# RKE2 refuses to start when the host is not prepared (see README step 6).
+# RKE2 refuses to start when the host is not prepared (README steps 5 and 6).
 profile: "cis"
 
 # Where RKE2 pulls its own system images (CoreDNS, the CNI, ingress). REPLACE.

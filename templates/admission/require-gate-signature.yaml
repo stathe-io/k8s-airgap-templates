@@ -1,5 +1,9 @@
-# Admits a pod only if every image carries the import gate's signature.
-# Kyverno v1.19. Replace the public key. Exempt only what never passes the gate.
+# Lets a pod start only if every image in it carries the import gate's
+# signature. Kyverno v1.19.
+#
+# Fill in: the gate's public key (REPLACE below). Nothing else needs changing.
+# Apply:   kubectl apply -f require-gate-signature.yaml
+# Check:   kubectl get imagevalidatingpolicy   shows READY true
 apiVersion: policies.kyverno.io/v1
 kind: ImageValidatingPolicy
 metadata:
@@ -7,9 +11,13 @@ metadata:
 spec:
   webhookConfiguration:
     timeoutSeconds: 15
+  # Check pods when they are created, not afterwards in the background.
   evaluation:
     background:
       enabled: false
+  # Deny: refuse the pod. Fail: if Kyverno cannot decide (for example it cannot
+  # reach the registry), refuse too. Safe, but it makes Kyverno part of the
+  # platform's availability: run it with three replicas (see README).
   validationActions: [Deny]
   failurePolicy: Fail
   matchConstraints:
@@ -18,26 +26,32 @@ spec:
         apiVersions: ['v1']
         operations: ['CREATE', 'UPDATE']
         resources: ['pods']
-    # System images come from the distribution's airgap tarball, not the gate.
+    # Every namespace except these two. kube-system runs the distribution's own
+    # images, which come from its airgap tarball and never pass the gate.
+    # Do not add namespaces here to make a workload start. Fix the workload, or
+    # give it a PolicyException with a name and an owner.
     namespaceSelector:
       matchExpressions:
         - key: kubernetes.io/metadata.name
           operator: NotIn
           values: [kube-system, kyverno]
+  # Every image, whatever registry it names.
   matchImageReferences:
     - glob: '*'
   attestors:
     - name: gate
       cosign:
         key:
+          # REPLACE with the contents of the gate's cosign.pub, indented like this.
           data: |
             -----BEGIN PUBLIC KEY-----
             REPLACE WITH THE GATE'S PUBLIC KEY
             -----END PUBLIC KEY-----
-        # No transparency log inside the enclave.
+        # There is no transparency log inside the enclave. The key alone decides.
         ctlog:
           insecureIgnoreTlog: true
           insecureIgnoreSCT: true
+  # Every container and every init container must carry the signature.
   validations:
     - expression: >-
         images.containers.map(image, verifyImageSignatures(image, [attestors.gate])).all(e, e > 0) &&

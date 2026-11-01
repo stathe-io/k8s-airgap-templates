@@ -1,28 +1,49 @@
-# The keys to change in harbor.yml for an enclave. Start from the
-# harbor.yml.tmpl in harbor-offline-installer-v2.14.6.tgz and set these. Every
-# other key keeps its default. Checked against that template, not installed.
+# The settings to change in harbor.yml for an enclave.
+#
+# How to use this file
+#   1. Unpack harbor-offline-installer-v2.14.6.tgz. It contains harbor.yml.tmpl.
+#   2. Copy harbor.yml.tmpl to harbor.yml.
+#   3. In harbor.yml, set each key below to the value shown here. Lines marked
+#      REPLACE need your values. Leave every other key in harbor.yml as it is.
+#
+# Checked against harbor.yml.tmpl of v2.14.6. Not yet installed in a test.
 
+# The name clients use to reach Harbor. REPLACE.
+# It must match the name in the TLS certificate below.
 hostname: registry.enclave.example
 
-# TLS with a certificate from the enclave CA. Admission needs https to read
-# signatures through the OCI 1.1 referrers API.
+# TLS with a certificate issued by the enclave CA. REPLACE the paths.
+# Admission needs https to read image signatures. Without it every image is
+# refused.
 https:
   port: 443
   certificate: /etc/pki/enclave/registry.crt
   private_key: /etc/pki/enclave/registry.key
 
+# The password of the admin user in the web UI. REPLACE with a long, unique
+# password. Change it again after the first login.
 harbor_admin_password: REPLACE
 
+# The password of Harbor's internal database. REPLACE with a long, unique
+# password. Nobody needs to type it.
 database:
   password: REPLACE
 
+# Where Harbor keeps images and its database on this host. Needs room for
+# every image the enclave runs.
 data_volume: /data
 
-# Harbor's own Trivy has no internet either. Put trivy.db and metadata.json
-# from the bundle in /home/scanner/.cache/trivy/db in the scanner container.
+# Harbor's built-in scanner. It has no internet, so it never downloads a
+# database itself. Copy trivy.db and metadata.json from the bundle to
+#   <data_volume>/trivy-adapter/trivy/db/
+# on this host, after every transfer.
 trivy:
+  # Only show vulnerabilities that have a fix, like the import gate does.
   ignore_unfixed: true
+  # Never download the database. It comes in with the transfer.
   skip_update: true
   skip_java_db_update: true
+  # Never look anything up on the internet while scanning.
   offline_scan: true
+  # Verify the registry certificate.
   insecure: false

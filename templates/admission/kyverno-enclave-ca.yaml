@@ -1,15 +1,20 @@
-# Makes Kyverno trust the enclave CA. Without it Kyverno finds no signature in
-# cosign's current format: it fetches OCI 1.1 referrers over https only, whatever
-# allowInsecureRegistry says.
+# Makes Kyverno trust the enclave CA, so it can fetch signatures from the
+# enclave registry over https. Without it Kyverno finds no signature in
+# cosign's current format and refuses every image.
 #
-#   kubectl -n kyverno create configmap enclave-ca --from-file=ca.crt=<enclave-ca.crt>
+# Apply, with the enclave CA certificate in enclave-ca.crt:
+#   kubectl -n kyverno create configmap enclave-ca --from-file=ca.crt=enclave-ca.crt
 #   kubectl -n kyverno patch deployment kyverno-admission-controller --patch-file kyverno-enclave-ca.yaml
+# Check:
+#   kubectl -n kyverno rollout status deployment kyverno-admission-controller
+#   ends with "successfully rolled out".
 spec:
   template:
     spec:
       containers:
         - name: kyverno
           env:
+            # Go programs, Kyverno included, read trusted CAs from this file.
             - name: SSL_CERT_FILE
               value: /enclave-ca/ca.crt
           volumeMounts:

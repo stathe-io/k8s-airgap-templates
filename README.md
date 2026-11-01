@@ -5,9 +5,9 @@ what to replace and how far it was tested.
 
 | Template | |
 |---|---|
-| [transfer](templates/transfer) | Seal a bundle on the connected side, open it at the gate |
+| [transfer](templates/transfer) | Seal a bundle on the connected side, open it at the gate. Tested on five cases |
 | [rke2](templates/rke2) | RKE2 with the CIS profile and SELinux, step by step. Tested on AlmaLinux 9 without a route out |
-| [harbor](templates/harbor) | Harbor as the enclave registry, with an offline scanner |
-| [admission](templates/admission) | Kyverno admits only images the gate signed |
+| [harbor](templates/harbor) | Harbor as the enclave registry, with an offline scanner. Not yet installed in a test |
+| [admission](templates/admission) | Kyverno admits only images the gate signed. Tested in the lab |
 
 [lab/](lab) runs the patterns on one machine and checks each one.
