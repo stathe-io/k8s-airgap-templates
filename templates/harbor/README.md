@@ -11,7 +11,7 @@ In the enclave:
 1. Copy `harbor.yml.tmpl` from the installer to `harbor.yml` and set the keys
    in [harbor.yml](harbor.yml).
 2. `./install.sh --with-trivy`
-3. Per project the cluster pulls from: an immutability rule on all tags, and
-   no proxy cache or replication to an upstream.
+3. Per project the cluster pulls from: an immutability rule on all tags. No
+   proxy cache or replication to an upstream.
 4. Robot accounts: one for the import gate (push), one per pipeline, one for
    the nodes (pull only).
