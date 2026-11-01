@@ -135,6 +135,61 @@ bundled_image_runs() {
   return $status
 }
 
+lab="$(cd "$(dirname "$0")/.." && pwd)"
+
+# The gate's decision for one image, read from the scan report it left in
+# evidence/. No report means the gate never looked, which is a failure too.
+report_for() {
+  dir=$(echo "$1" | sed -E 's#[@:].*##; s#[/.]#_#g')
+  echo "$lab/evidence/$dir.json"
+}
+
+findings_in() {
+  grep -o '"VulnerabilityID"' "$1" | wc -l | tr -d ' '
+}
+
+admitted() {
+  ref="$REGISTRY/$(echo "$1" | sed -E 's#^[^/]+/##')"
+  k run gate-probe --restart=Never --dry-run=server --image="$ref" >/dev/null 2>&1
+}
+
+# For every requested image a scan report exists. A clean report goes with
+# admission and findings go with refusal. The gate and admission agree.
+gate_and_admission_agree() {
+  for ref in $(grep -v '^#' "$lab/images.txt"); do
+    report=$(report_for "$ref")
+    [ -f "$report" ] || return 1
+    if [ "$(findings_in "$report")" -eq 0 ]; then
+      admitted "$ref" || return 1
+    else
+      ! admitted "$ref" || return 1
+    fi
+  done
+}
+
+# The gate has to have refused something, or the check above proves nothing
+# about it.
+gate_refused_a_vulnerable_image() {
+  for ref in $(grep -v '^#' "$lab/images.txt"); do
+    report=$(report_for "$ref")
+    [ -f "$report" ] && [ "$(findings_in "$report")" -gt 0 ] && ! admitted "$ref" && return 0
+  done
+  return 1
+}
+
+# The control first: the database in the bundle is accepted today.
+current_database_is_accepted() {
+  sh "$lab/enclave/db-age.sh"
+}
+
+# The database has to be there: without it db-age.sh fails on the missing file
+# and the negation would turn that into a pass.
+stale_database_is_refused() {
+  [ -f "$lab/bundle/trivy-cache/db/metadata.json" ] || return 1
+  later=$(( $(date -u +%s) + (TRIVY_DB_MAX_AGE_HOURS + 24) * 3600 ))
+  ! GATE_NOW=$later sh "$lab/enclave/db-age.sh"
+}
+
 k create namespace "$PROBES" --dry-run=client -o yaml | k apply -f - >/dev/null 2>&1
 
 check "the cluster node is Ready" node_ready
@@ -147,5 +202,9 @@ check "the enclave registry holds exactly the bundle" registry_holds_exactly_the
 check "a bundled image runs, pulled through the enclave registry" bundled_image_runs
 check "an unsigned image is refused at admission" unsigned_image_is_refused
 check "an unsigned init container is refused at admission" unsigned_init_container_is_refused
+check "the bundled vulnerability database is accepted" current_database_is_accepted
+check "a database past its maximum age is refused" stale_database_is_refused
+check "the gate refused an image with fixable critical vulnerabilities" gate_refused_a_vulnerable_image
+check "every image has a scan report that matches its admission" gate_and_admission_agree
 
 exit $failed

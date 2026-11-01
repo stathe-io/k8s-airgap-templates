@@ -23,23 +23,61 @@ until docker run --rm --network "$NETWORK" "$CRANE_IMAGE" catalog --insecure "$R
 done
 
 keys="$here/../keys"
+evidence="$here/../evidence"
+
+# The gate refuses to scan with a database older than the maximum age.
+sh "$here/db-age.sh"
+
+# Trivy writes to its cache while it scans. It works on a copy so the bundle
+# stays as it arrived.
+scan_cache=$(mktemp -d)
+cp -R "$bundle/trivy-cache/." "$scan_cache/"
+rm -rf "$evidence"
+mkdir -p "$evidence"
 
 # The import gate. Each image is loaded under its own repository path and
-# signed by digest with the gate's key. The signature says the image came in
-# through the gate. There is no transparency log to record it in. The
-# signature uses cosign's classic format because Kyverno does not find the
-# newer bundle format in a registry without the OCI 1.1 referrers API.
+# scanned offline. Only an image with no fixable vulnerability at
+# GATE_SEVERITY is signed, by digest, with the gate's key. The scan report stays
+# in evidence/ either way.
+#
+# The signature says the image passed the gate. There is no transparency log to
+# record it in. It uses cosign's classic format because Kyverno does not find
+# the newer bundle format in a registry without the OCI 1.1 referrers API.
 for dir in "$bundle"/images/*/; do
   ref=$(cat "$dir/ref")
   repo=$(echo "$ref" | sed -E 's#^[^/]+/##; s#@.*##')
   digest=${ref##*@}
+  pinned="$REGISTRY/${repo%%:*}@$digest"
   docker run --rm --network "$NETWORK" -v "$dir:/img:ro" "$CRANE_IMAGE" \
     push --index --insecure /img "$REGISTRY/$repo" >/dev/null
-  docker run --rm --network "$NETWORK" -e COSIGN_PASSWORD= -v "$keys:/k:ro" "$COSIGN_IMAGE" \
-    sign --key /k/cosign.key --new-bundle-format=false --use-signing-config=false \
-    --tlog-upload=false --allow-http-registry --yes "$REGISTRY/${repo%%:*}@$digest" >/dev/null 2>&1
-  echo "loaded and signed $ref"
+
+  report="$(basename "$dir").json"
+  set +e
+  docker run --rm --network "$NETWORK" -e TRIVY_INSECURE=true \
+    -v "$scan_cache:/cache" -v "$evidence:/evidence" "$TRIVY_IMAGE" \
+    image --cache-dir /cache --skip-db-update --skip-java-db-update --offline-scan \
+    --ignore-unfixed --severity "$GATE_SEVERITY" --exit-code 1 -q \
+    --format json --output "/evidence/$report" "$pinned"
+  scan=$?
+  set -e
+
+  case $scan in
+    0)
+      docker run --rm --network "$NETWORK" -e COSIGN_PASSWORD= -v "$keys:/k:ro" "$COSIGN_IMAGE" \
+        sign --key /k/cosign.key --new-bundle-format=false --use-signing-config=false \
+        --tlog-upload=false --allow-http-registry --yes "$pinned" >/dev/null 2>&1
+      echo "passed and signed $ref"
+      ;;
+    1)
+      echo "refused $ref: $(grep -o '"VulnerabilityID"' "$evidence/$report" | wc -l | tr -d ' ') fixable $GATE_SEVERITY findings, not signed"
+      ;;
+    *)
+      echo "scan failed for $ref" >&2
+      exit 1
+      ;;
+  esac
 done
+rm -rf "$scan_cache"
 
 # The fixture: one image in the registry that the gate did not sign.
 first=$(grep -v '^#' "$here/../images.txt" | head -1 | sed -E 's#^[^/]+/##; s#:.*##')

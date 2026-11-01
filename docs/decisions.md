@@ -74,3 +74,35 @@ The Kyverno release publishes no checksum for `install.yaml`. `versions.env`
 holds the hash of the copy first fetched. The fetch stops if it changes.
 That is trust on first use, which is weaker than a published checksum and is
 stated here for that reason.
+
+## The gate refuses fixable critical vulnerabilities
+
+The gate scans each image offline with Trivy and signs it only if no
+vulnerability at `GATE_SEVERITY` (critical) has a fix available. A finding
+without a fix does not block: refusing it would block the image with nothing
+the owner can do about it. The scan report stays in `evidence/` for every
+image, passed or refused.
+
+Cost: the threshold is a choice. Many enclaves block high as well. The setting
+is one line in `versions.env`.
+
+## The vulnerability database has a maximum age
+
+Inside the enclave the scanner knows only what was true at the last transfer. A
+scan that passes on a month-old database proves little, so the gate refuses to
+run when the database is older than `TRIVY_DB_MAX_AGE_HOURS` (one week). That
+puts a cadence on the transfers, which is the point.
+
+Cost: an enclave that skips a transfer stops admitting new images until the
+next one.
+
+## The demo image is Chainguard's nginx
+
+The lab needs an image that passes the gate. On the day the gate was built,
+every recent `nginx-unprivileged` tag carried a fixable critical finding in
+`brotli-libs`. Chainguard's nginx carried none at critical or high. The old
+`nginx-unprivileged:1.27-alpine` stays in `images.txt` as the image the gate
+refuses.
+
+Cost: none for the lab. It does show why a gate needs a cadence: an image that
+passes today can fail next week without changing.

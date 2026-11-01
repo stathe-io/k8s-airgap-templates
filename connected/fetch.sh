@@ -20,10 +20,16 @@ grep " $K3S_AIRGAP\$" k3s-sha256sum.txt | $sum -c -
 
 # The tools that run inside the enclave travel in the bundle too, so the
 # enclave side never pulls anything.
-for tool in "$REGISTRY_IMAGE" "$CRANE_IMAGE" "$COSIGN_IMAGE"; do
+for tool in "$REGISTRY_IMAGE" "$CRANE_IMAGE" "$COSIGN_IMAGE" "$TRIVY_IMAGE"; do
   docker pull -q "$tool" >/dev/null
 done
-docker save "$REGISTRY_IMAGE" "$CRANE_IMAGE" "$COSIGN_IMAGE" -o tools.tar
+docker save "$REGISTRY_IMAGE" "$CRANE_IMAGE" "$COSIGN_IMAGE" "$TRIVY_IMAGE" -o tools.tar
+
+# The vulnerability database the gate scans with. It is as current as this
+# transfer and no newer; enclave/db-age.sh holds the gate to that.
+rm -rf trivy-cache
+docker run --rm -v "$(pwd)/trivy-cache:/cache" "$TRIVY_IMAGE" \
+  image --download-db-only --cache-dir /cache -q
 
 curl -sfLo kyverno-install.yaml \
   "https://github.com/kyverno/kyverno/releases/download/$KYVERNO_VERSION/install.yaml"
