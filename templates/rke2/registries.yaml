@@ -1,8 +1,10 @@
-# /etc/rancher/rke2/registries.yaml on every node.
+# Where every node pulls container images from.
+# Copy to /etc/rancher/rke2/registries.yaml on every node, before the first
+# start. REPLACE registry.enclave.example:5000 with your enclave registry.
 #
-# Every registry a manifest could name is mirrored to the enclave registry, so
-# an upstream reference still resolves inside. Together with
-# disable-default-registry-endpoint in config.yaml there is no path out.
+# Any image name, also docker.io/... or ghcr.io/..., is fetched from the enclave
+# registry. Together with disable-default-registry-endpoint in config.yaml there
+# is no way out.
 mirrors:
   docker.io:
     endpoint: ["https://registry.enclave.example:5000"]
@@ -12,6 +14,6 @@ mirrors:
 configs:
   "registry.enclave.example:5000":
     tls:
-      # The enclave's own CA. Not insecure_skip_verify: a registry inside the
-      # enclave still gets a certificate the nodes can check.
+      # The enclave CA certificate. REPLACE the path if yours differs.
+      # Do not use insecure_skip_verify: the registry gets a real certificate.
       ca_file: /etc/pki/enclave/ca.crt

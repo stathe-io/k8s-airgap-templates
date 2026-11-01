@@ -1,26 +1,36 @@
-# /etc/rancher/rke2/config.yaml for a server node inside the enclave.
-#
-# Not exercised by the lab, which runs k3s. Checked against the RKE2 air-gap
-# and hardening documentation. See README.md in this directory for the host
-# preparation the CIS profile needs before the first start.
+# RKE2 configuration for a server node inside the enclave.
+# Copy to /etc/rancher/rke2/config.yaml BEFORE the first start of RKE2.
+# Lines marked REPLACE need your values. Everything else can stay as it is.
 
-# CIS hardening: restricted Pod Security in all namespaces except the system
-# ones, default network policies, API audit logging and host checks that stop
-# RKE2 when the host is not prepared.
+# The node's own address on the enclave network. REPLACE.
+# Find it with: ip -4 addr show <interface>   (the address after "inet")
+# Required here because of blackhole-route.service: without it RKE2 picks the
+# address of the route to nowhere (203.0.113.254) and nodes cannot reach each
+# other. Set it before the first start. Changing it afterwards breaks etcd.
+node-ip: "192.168.5.15"
+
+# CIS hardening. Turns on: restricted Pod Security in all namespaces except the
+# system ones, default NetworkPolicies, API audit logging and host checks.
+# RKE2 refuses to start when the host is not prepared (see README step 6).
 profile: "cis"
 
-# System images (CoreDNS, the CNI, the ingress controller) come from the
-# enclave registry instead of docker.io. They have to be loaded there first.
+# Where RKE2 pulls its own system images (CoreDNS, the CNI, ingress). REPLACE.
+# Only needed when those images are in the enclave registry. Leave this line
+# out when the node loads them from rke2-images.linux-<arch>.tar.zst instead.
+# Not exercised in the test: the test node used the tarball.
 system-default-registry: "registry.enclave.example:5000"
 
-# Never fall back to the original registries for anything configured in
-# registries.yaml. Inside the enclave the fallback can only time out. It hides
-# a missing image behind a slow pull.
+# Never try the original registries (docker.io and others) for anything in
+# registries.yaml. Inside the enclave that can only time out.
 disable-default-registry-endpoint: true
 
+# Run with SELinux. Requires the rke2-selinux package (README step 4).
 selinux: true
+
+# Only root may read the admin kubeconfig.
 write-kubeconfig-mode: "0600"
 
-# Names and addresses the API server certificate must cover.
+# Extra names the API server certificate must be valid for. REPLACE with the
+# name administrators use to reach the cluster.
 tls-san:
   - "rke2.enclave.example"
