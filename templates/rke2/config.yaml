@@ -1,0 +1,26 @@
+# /etc/rancher/rke2/config.yaml for a server node inside the enclave.
+#
+# Not exercised by the lab, which runs k3s. Checked against the RKE2 air-gap
+# and hardening documentation. See README.md in this directory for the host
+# preparation the CIS profile needs before the first start.
+
+# CIS hardening: restricted Pod Security in all namespaces except the system
+# ones, default network policies, API audit logging and host checks that stop
+# RKE2 when the host is not prepared.
+profile: "cis"
+
+# System images (CoreDNS, the CNI, the ingress controller) come from the
+# enclave registry instead of docker.io. They have to be loaded there first.
+system-default-registry: "registry.enclave.example:5000"
+
+# Never fall back to the original registries for anything configured in
+# registries.yaml. Inside the enclave the fallback can only time out. It hides
+# a missing image behind a slow pull.
+disable-default-registry-endpoint: true
+
+selinux: true
+write-kubeconfig-mode: "0600"
+
+# Names and addresses the API server certificate must cover.
+tls-san:
+  - "rke2.enclave.example"

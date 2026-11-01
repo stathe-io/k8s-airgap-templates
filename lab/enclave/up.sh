@@ -120,6 +120,9 @@ k -n kube-system create configmap coredns-custom --dry-run=client -o yaml \
     $registry_ip registry
   }
 }" | k apply -f - >/dev/null
+# k3s creates CoreDNS a little after the node is Ready. Restarting it before it
+# exists fails, so wait for it.
+until k -n kube-system get deployment coredns >/dev/null 2>&1; do sleep 2; done
 k -n kube-system rollout restart deployment coredns >/dev/null
 
 # Kyverno from the bundle, with its images pointed at the enclave registry.

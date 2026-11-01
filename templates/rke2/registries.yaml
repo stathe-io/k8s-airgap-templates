@@ -1,0 +1,17 @@
+# /etc/rancher/rke2/registries.yaml on every node.
+#
+# Every registry a manifest could name is mirrored to the enclave registry, so
+# an upstream reference still resolves inside. Together with
+# disable-default-registry-endpoint in config.yaml there is no path out.
+mirrors:
+  docker.io:
+    endpoint: ["https://registry.enclave.example:5000"]
+  "*":
+    endpoint: ["https://registry.enclave.example:5000"]
+
+configs:
+  "registry.enclave.example:5000":
+    tls:
+      # The enclave's own CA. Not insecure_skip_verify: a registry inside the
+      # enclave still gets a certificate the nodes can check.
+      ca_file: /etc/pki/enclave/ca.crt

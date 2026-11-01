@@ -1,0 +1,25 @@
+# /etc/systemd/system/blackhole-route.service
+#
+# RKE2 needs a default route to find the node's primary address and for
+# kube-proxy's ClusterIP routing. An enclave node often has none. This gives it
+# one on a dummy interface, which leads nowhere.
+#
+# 203.0.113.0/24 is a documentation range. Pick one that overlaps none of the
+# cluster, service or other reachable networks.
+
+[Unit]
+Description=Default route to nowhere, for RKE2 on a node without one
+Before=rke2-server.service rke2-agent.service
+After=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/sbin/ip link add blackhole0 type dummy
+ExecStart=/usr/sbin/ip addr add 203.0.113.254/31 dev blackhole0
+ExecStart=/usr/sbin/ip link set blackhole0 up
+ExecStart=/usr/sbin/ip route add default via 203.0.113.255 dev blackhole0 metric 1000
+ExecStop=/usr/sbin/ip link del blackhole0
+
+[Install]
+WantedBy=multi-user.target
