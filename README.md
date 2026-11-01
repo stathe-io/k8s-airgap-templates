@@ -1,4 +1,4 @@
-# secure-lab
+# k8s-airgap-templates
 
 Templates for an air-gapped Kubernetes platform. Each one says where it goes,
 what to replace and how far it was tested.
