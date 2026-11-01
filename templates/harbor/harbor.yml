@@ -1,0 +1,28 @@
+# The keys to change in harbor.yml for an enclave. Start from the
+# harbor.yml.tmpl in harbor-offline-installer-v2.14.6.tgz and set these. Every
+# other key keeps its default. Checked against that template, not installed.
+
+hostname: registry.enclave.example
+
+# TLS with a certificate from the enclave CA. Admission needs https to read
+# signatures through the OCI 1.1 referrers API.
+https:
+  port: 443
+  certificate: /etc/pki/enclave/registry.crt
+  private_key: /etc/pki/enclave/registry.key
+
+harbor_admin_password: REPLACE
+
+database:
+  password: REPLACE
+
+data_volume: /data
+
+# Harbor's own Trivy has no internet either. Put trivy.db and metadata.json
+# from the bundle in /home/scanner/.cache/trivy/db in the scanner container.
+trivy:
+  ignore_unfixed: true
+  skip_update: true
+  skip_java_db_update: true
+  offline_scan: true
+  insecure: false

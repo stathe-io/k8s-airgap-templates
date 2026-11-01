@@ -1,0 +1,46 @@
+# Admits a pod only if every image carries the import gate's signature.
+# Kyverno v1.19. Replace the public key. Exempt only what never passes the gate.
+apiVersion: policies.kyverno.io/v1
+kind: ImageValidatingPolicy
+metadata:
+  name: require-gate-signature
+spec:
+  webhookConfiguration:
+    timeoutSeconds: 15
+  evaluation:
+    background:
+      enabled: false
+  validationActions: [Deny]
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups: ['']
+        apiVersions: ['v1']
+        operations: ['CREATE', 'UPDATE']
+        resources: ['pods']
+    # System images come from the distribution's airgap tarball, not the gate.
+    namespaceSelector:
+      matchExpressions:
+        - key: kubernetes.io/metadata.name
+          operator: NotIn
+          values: [kube-system, kyverno]
+  matchImageReferences:
+    - glob: '*'
+  attestors:
+    - name: gate
+      cosign:
+        key:
+          data: |
+            -----BEGIN PUBLIC KEY-----
+            REPLACE WITH THE GATE'S PUBLIC KEY
+            -----END PUBLIC KEY-----
+        # No transparency log inside the enclave.
+        ctlog:
+          insecureIgnoreTlog: true
+          insecureIgnoreSCT: true
+  validations:
+    - expression: >-
+        images.containers.map(image, verifyImageSignatures(image, [attestors.gate])).all(e, e > 0) &&
+        (!has(images.initContainers) ||
+         images.initContainers.map(image, verifyImageSignatures(image, [attestors.gate])).all(e, e > 0))
+      message: 'image is not signed by the import gate'
