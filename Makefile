@@ -1,9 +1,14 @@
-.PHONY: bundle up verify down
+.PHONY: keys bundle up verify down
+
+# The import gate's signing key. It stays on this host and out of git; only
+# the public half goes into the cluster.
+keys:
+	sh enclave/keys.sh
 
 bundle:
 	sh connected/fetch.sh
 
-up:
+up: keys
 	sh enclave/up.sh
 
 verify:

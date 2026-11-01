@@ -6,7 +6,7 @@ before it crossed the gap. Every claim the lab makes has a check in
 
 ```sh
 make bundle   # connected side: fetch and verify what the enclave needs
-make up       # enclave: an internal network and a k3s node started from the bundle
+make up       # enclave: network, registry, import gate, k3s, admission
 make verify   # prove it
 make down
 ```
@@ -21,6 +21,8 @@ PASS  a pod cannot reach the internet
 PASS  an image outside the bundle is not pulled
 PASS  the enclave registry holds exactly the bundle
 PASS  a bundled image runs, pulled through the enclave registry
+PASS  an unsigned image is refused at admission
+PASS  an unsigned init container is refused at admission
 ```
 
 Runs on a Linux host (amd64 or arm64) with Docker, k3d and kubectl. macOS with
@@ -43,10 +45,18 @@ digest in the list is the digest the enclave serves. The registry and the tool
 that loads it travel in the bundle as well. Inside, k3s mirrors every registry
 to the one in the enclave and has nowhere else to go.
 
+Loading an image into the enclave registry is the import gate. The gate signs
+each image by digest with a key that never leaves the host. Kyverno admits
+only images with that signature. The registry also holds one image the gate did
+not sign, so the refusal can be shown.
+
 The API port is not published to the host. An internal network cannot publish
 one. In a real enclave the operator works from inside it anyway.
 
+Why it is built this way and what each choice costs is in
+[docs/decisions.md](docs/decisions.md).
+
 ## Not yet
 
-Images that are scanned and signed before they cross. Admission that only lets
-signed images run.
+Scanning at the gate. Example pipelines from `ci-baseline` running inside the
+enclave. A workstation inside the enclave that runs stathe.

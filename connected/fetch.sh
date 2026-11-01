@@ -20,10 +20,14 @@ grep " $K3S_AIRGAP\$" k3s-sha256sum.txt | $sum -c -
 
 # The tools that run inside the enclave travel in the bundle too, so the
 # enclave side never pulls anything.
-for tool in "$REGISTRY_IMAGE" "$CRANE_IMAGE"; do
+for tool in "$REGISTRY_IMAGE" "$CRANE_IMAGE" "$COSIGN_IMAGE"; do
   docker pull -q "$tool" >/dev/null
 done
-docker save "$REGISTRY_IMAGE" "$CRANE_IMAGE" -o tools.tar
+docker save "$REGISTRY_IMAGE" "$CRANE_IMAGE" "$COSIGN_IMAGE" -o tools.tar
+
+curl -sfLo kyverno-install.yaml \
+  "https://github.com/kyverno/kyverno/releases/download/$KYVERNO_VERSION/install.yaml"
+echo "$KYVERNO_MANIFEST_SHA256  kyverno-install.yaml" | $sum -c -
 
 # Each image as an OCI layout holding the whole index, so the digest in
 # images.txt is the digest the enclave registry serves.
