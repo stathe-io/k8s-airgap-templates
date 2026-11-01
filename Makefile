@@ -1,5 +1,3 @@
-include versions.env
-
 .PHONY: bundle up verify down
 
 bundle:
@@ -12,5 +10,4 @@ verify:
 	sh verify/verify.sh
 
 down:
-	-k3d cluster delete $(CLUSTER)
-	-docker network rm $(NETWORK)
+	. ./versions.env; k3d cluster delete $$CLUSTER; docker network rm $$NETWORK || true

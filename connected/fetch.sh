@@ -10,7 +10,10 @@ cd "$out"
 
 release="https://github.com/k3s-io/k3s/releases/download/$(echo "$K3S_VERSION" | sed 's/+/%2B/')"
 curl -sfLO "$release/$K3S_AIRGAP"
-curl -sfL "$release/sha256sum-arm64.txt" -o k3s-sha256sum.txt
+curl -sfL "$release/sha256sum-$ARCH.txt" -o k3s-sha256sum.txt
+
+# sha256sum on Linux; shasum where coreutils is not installed, as on macOS.
+if command -v sha256sum >/dev/null; then sum="sha256sum"; else sum="shasum -a 256"; fi
 
 # Refuse the bundle rather than carry an unverified file across the gap.
-grep " $K3S_AIRGAP\$" k3s-sha256sum.txt | shasum -a 256 -c -
+grep " $K3S_AIRGAP\$" k3s-sha256sum.txt | $sum -c -

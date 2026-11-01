@@ -21,7 +21,8 @@ PASS  a pod cannot reach the internet
 PASS  an image outside the bundle is not pulled
 ```
 
-Needs Docker, k3d and kubectl. Versions are pinned in `versions.env`.
+Runs on a Linux host (amd64 or arm64) with Docker, k3d and kubectl. macOS with
+Docker Desktop works too. Versions are pinned in `versions.env`.
 
 ## How it works
 
