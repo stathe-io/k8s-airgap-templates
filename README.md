@@ -1,4 +1,4 @@
-# k8s-airgap-templates
+# k8s-templates
 
 Templates for a Kubernetes platform, air-gapped or not. Each one says where it
 goes, what to replace and how far it was tested. Copy what you need.
