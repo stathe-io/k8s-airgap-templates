@@ -1,0 +1,16 @@
+# A namespace that refuses privileged and root pods, using what is built into
+# Kubernetes. Nothing to install.
+#
+# Fill in: the name (REPLACE). Keep enforce on baseline until step 3 of the README.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: REPLACE
+  labels:
+    # Refuses a pod. Start at baseline, which stops privileged containers and
+    # host access and breaks little.
+    pod-security.kubernetes.io/enforce: baseline
+    # Warns the person applying, and logs to the audit log. Neither stops
+    # anything. This is how you see what restricted would break.
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/audit: restricted

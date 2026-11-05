@@ -1,0 +1,27 @@
+# Checks that every image is pinned by digest. A tag can be moved, a digest cannot.
+#
+# Fill in: nothing. Starts in Audit, which logs and blocks nothing.
+# Apply:   see the README. Move to Deny only when the report is empty.
+apiVersion: policies.kyverno.io/v1
+kind: ValidatingPolicy
+metadata:
+  name: require-digest
+spec:
+  validationActions: [Audit]
+  matchConstraints:
+    resourceRules:
+      - apiGroups: ['']
+        apiVersions: ['v1']
+        operations: ['CREATE', 'UPDATE']
+        resources: ['pods']
+    # The platform's own namespaces. Add yours, and keep the list short.
+    namespaceSelector:
+      matchExpressions:
+        - key: kubernetes.io/metadata.name
+          operator: NotIn
+          values: [kube-system, kyverno]
+  validations:
+    - expression: >-
+        (object.spec.containers + object.spec.?initContainers.orValue([])).all(c,
+        c.image.contains("@sha256:"))
+      message: 'an image is not pinned by digest'
