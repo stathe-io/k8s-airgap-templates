@@ -1,0 +1,22 @@
+# A pod that passes restricted: the fields your workloads need. Copy the two
+# securityContext blocks into a Deployment's pod template.
+#
+# Fill in: the namespace and the image (REPLACE).
+apiVersion: v1
+kind: Pod
+metadata:
+  name: restricted-example
+  namespace: REPLACE
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 65532 # The image must run as a user that is not root.
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+    - name: app
+      image: REPLACE
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop: [ALL]

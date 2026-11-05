@@ -1,0 +1,23 @@
+# Lets one namespace reach selected pods here, on one port. Copy it per path you
+# open, so each open path is a file someone reviewed.
+#
+# Fill in: the namespace, the namespace traffic comes from, the pod label and
+#          the port (all REPLACE). For an ingress controller, that namespace is
+#          where the controller runs.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-from-REPLACE
+  namespace: REPLACE
+spec:
+  podSelector:
+    matchLabels:
+      app: REPLACE
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: REPLACE
+      ports:
+        - {protocol: TCP, port: 8080} # REPLACE

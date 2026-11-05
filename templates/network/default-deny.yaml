@@ -1,0 +1,14 @@
+# Closes a namespace: no traffic in or out, for every pod in it.
+#
+# Fill in: the namespace (REPLACE).
+# Apply:   with the two allow files, in one command. See the README.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny
+  namespace: REPLACE
+spec:
+  # An empty selector means every pod in the namespace.
+  podSelector: {}
+  # Listing both with no rules below them is what closes both directions.
+  policyTypes: [Ingress, Egress]
